@@ -24,10 +24,12 @@
     .form-row { display: flex; gap: 12px; }
     .form-row input { flex: 1; }
     .orders { max-width: 500px; margin: 0 auto; background: white; padding: 12px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-    .order-item { padding: 10px 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+    .order-item { padding: 10px 8px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .order-item:last-child { border-bottom: none; }
     .order-item:hover { background: #f7f7ff; }
     .order-details { margin-top: 12px; padding: 10px; background: #f7f7ff; border-radius: 8px; }
+    .btn-cancel { border: none; background: #ffe6e6; color: #b30000; padding: 6px 10px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+    .btn-cancel:hover { background: #ffd6d6; }
   </style>
 </head>
 <body>
@@ -123,6 +125,13 @@
       } catch (e) {
         // ignore
       }
+    } else if (tab === 'orders') {
+      // Нет данных — запросим у бота и покажем подсказку
+      const container = document.getElementById('ordersList');
+      container.textContent = 'Загружаем ваши заказы... Ссылка откроется ниже в чате.';
+      try {
+        tg.sendData(JSON.stringify({ action: 'fetch_orders' }));
+      } catch (e) {}
     }
 
     function renderOrders(orders) {
@@ -136,8 +145,16 @@
         const item = document.createElement('div');
         item.className = 'order-item';
         item.dataset.order = o.n;
-        item.textContent = `${o.n} — ${o.c || ''} — ${o.d || ''}`;
-        item.onclick = () => toggleOrderDetails(item, o);
+        const title = document.createElement('div');
+        title.textContent = `${o.n} — ${o.c || ''} — ${o.d || ''}`;
+        title.onclick = () => toggleOrderDetails(item, o);
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn-cancel';
+        cancelBtn.textContent = '🚫';
+        cancelBtn.title = 'Отменить заказ';
+        cancelBtn.onclick = (ev) => { ev.stopPropagation(); cancelOrder(o.n, item); };
+        item.appendChild(title);
+        item.appendChild(cancelBtn);
         container.appendChild(item);
       });
     }
@@ -173,9 +190,8 @@
     }
 
     // Отправка заказа
-    tg.MainButton.setText('Отправить заказ');
-    tg.MainButton.enable();
-    tg.MainButton.show();
+    // Изначальная настройка MainButton отдаётся на updateMainButton()
+    updateMainButton();
 
     function collectData() {
       const form = document.getElementById('orderForm');
@@ -202,6 +218,25 @@
       } catch (e) {
         tg.showAlert && tg.showAlert('Не удалось отправить заказ. Обновите приложение Telegram и попробуйте снова.');
       }
+    }
+
+    function cancelOrder(orderNumber, itemEl) {
+      const ok = window.confirm(`Отменить заказ ${orderNumber}?`);
+      if (!ok) return;
+      try {
+        tg.sendData(JSON.stringify({ action: 'cancel', order: orderNumber }));
+        // Обновим UI: снимем кнопку и отметим как отменён
+        const note = document.createElement('div');
+        note.className = 'order-details';
+        note.dataset.order = orderNumber;
+        note.innerHTML = `<div style="color:#b30000"><b>Заказ ${orderNumber} помечен как отменён. Если вы передумали — оформите новый заказ.</b></div>`;
+        // Удалим существующую панель под элементом, если есть
+        const next = itemEl.nextElementSibling;
+        if (next && next.classList.contains('order-details')) next.remove();
+        itemEl.parentNode.insertBefore(note, itemEl.nextSibling);
+        const btn = itemEl.querySelector('.btn-cancel');
+        if (btn) btn.disabled = true;
+      } catch (e) {}
     }
 
     document.getElementById('orderForm').addEventListener('submit', function (e) { e.preventDefault(); sendOrder(); });
