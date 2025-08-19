@@ -183,37 +183,65 @@
 
   <script>
     const tg = window.Telegram.WebApp;
-
+    tg.ready();
     tg.expand();
+
+    // Настраиваем главную кнопку Telegram (внизу)
+    tg.MainButton.setText('Отправить заказ');
+    tg.MainButton.enable();
+    tg.MainButton.show();
 
     const today = new Date().toISOString().split('T')[0];
     document.querySelector('input[name="Дата"]').value = today;
 
-    document.getElementById("orderForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-
-      const phoneInput = document.querySelector('input[name="Телефон"]');
-      if (!/^[0-9]+$/.test(phoneInput.value)) {
-        tg.showAlert("Телефон должен содержать только цифры.");
-        return;
-      }
-
-      const volume = document.querySelector('input[name="Объем, м³"]').value;
-      if (volume === "") {
-        tg.showAlert("Заполните объём.");
-        return;
-      }
-
-      const formData = new FormData(this);
+    function collectData() {
+      const form = document.getElementById('orderForm');
+      const formData = new FormData(form);
       const data = {};
       formData.forEach((value, key) => {
         if (value === undefined || value === null) return;
         data[key] = String(value).trim();
       });
+      return data;
+    }
 
-      tg.sendData(JSON.stringify(data));
-      tg.showAlert("Заказ отправлен!", () => tg.close());
+    function validate() {
+      const phone = document.querySelector('input[name="Телефон"]').value;
+      if (!/^[0-9]+$/.test(phone)) {
+        tg.showAlert('Телефон должен содержать только цифры.');
+        return false;
+      }
+      const volume = document.querySelector('input[name="Объем, м³"]').value;
+      if (volume === '') {
+        tg.showAlert('Заполните объём.');
+        return false;
+      }
+      return true;
+    }
+
+    function sendOrder() {
+      if (!validate()) return;
+      const data = collectData();
+      try {
+        tg.sendData(JSON.stringify(data));
+        // Небольшая задержка перед закрытием, чтобы данные точно ушли
+        setTimeout(() => {
+          tg.showAlert('Заказ отправлен!');
+          tg.close();
+        }, 200);
+      } catch (e) {
+        tg.showAlert('Не удалось отправить заказ. Обновите приложение Telegram и попробуйте снова.');
+      }
+    }
+
+    // Обработка сабмита формы (как дубль)
+    document.getElementById('orderForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      sendOrder();
     });
+
+    // Обработка главной кнопки Telegram
+    tg.onEvent('mainButtonClicked', sendOrder);
   </script>
 </body>
 </html>
