@@ -104,9 +104,20 @@
 
     // Рендер "Мои заказы" из параметра orders (base64 JSON)
     const ordersParam = url.searchParams.get('orders');
+    function b64utf8Decode(b64) {
+      const norm = b64.replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(norm);
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      try {
+        return new TextDecoder('utf-8').decode(bytes);
+      } catch (e) {
+        // Fallback для очень старых браузеров
+        return decodeURIComponent(escape(bin));
+      }
+    }
     if (ordersParam) {
       try {
-        const json = atob(ordersParam.replace(/-/g, '+').replace(/_/g, '/'));
+        const json = b64utf8Decode(ordersParam);
         const orders = JSON.parse(json);
         renderOrders(orders);
       } catch (e) {
@@ -124,16 +135,27 @@
       orders.forEach(o => {
         const item = document.createElement('div');
         item.className = 'order-item';
+        item.dataset.order = o.n;
         item.textContent = `${o.n} — ${o.c || ''} — ${o.d || ''}`;
-        item.onclick = () => showOrderDetails(o);
+        item.onclick = () => toggleOrderDetails(item, o);
         container.appendChild(item);
       });
     }
 
-    function showOrderDetails(o) {
-      const container = document.getElementById('ordersList');
+    function toggleOrderDetails(itemEl, o) {
+      const next = itemEl.nextElementSibling;
+      if (next && next.classList.contains('order-details') && next.dataset.order === o.n) {
+        // Уже открыт — свернуть
+        next.remove();
+        return;
+      }
+      // Иначе создать (и если под этим пунктом была другая панель — заменить её)
+      if (next && next.classList.contains('order-details')) {
+        next.remove();
+      }
       const box = document.createElement('div');
       box.className = 'order-details';
+      box.dataset.order = o.n;
       const fields = [
         ['Номер заказа', o.n],
         ['Дата/Время', o.d],
@@ -146,8 +168,8 @@
         ['Примечание', o.m],
       ];
       box.innerHTML = fields.map(([k,v]) => `<div style="margin:6px 0"><b>${k}:</b> ${v || ''}</div>`).join('');
-      container.appendChild(box);
-      box.scrollIntoView({ behavior: 'smooth' });
+      itemEl.parentNode.insertBefore(box, itemEl.nextSibling);
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // Отправка заказа
