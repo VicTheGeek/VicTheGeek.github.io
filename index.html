@@ -36,7 +36,7 @@
       margin: 0 auto;
     }
 
-    input {
+    input, select {
       width: 100%;
       padding: 12px 14px;
       margin-bottom: 16px;
@@ -46,7 +46,7 @@
       transition: border 0.3s ease, box-shadow 0.3s ease;
     }
 
-    input:focus {
+    input:focus, select:focus {
       outline: none;
       border-color: #7c7ce7;
       box-shadow: 0 0 0 2px rgba(124, 124, 231, 0.2);
@@ -78,6 +78,15 @@
       background-color: #5a5acb;
     }
 
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .form-row input {
+      flex: 1;
+    }
+
     @media (max-width: 480px) {
       body {
         padding: 16px;
@@ -88,6 +97,9 @@
       h2 {
         font-size: 1.5rem;
       }
+      .form-row {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -95,35 +107,114 @@
   <h2>Форма заказа</h2>
   <form id="orderForm">
     <input name="Контрагент" placeholder="Контрагент" required />
+
+    <!-- Контактный телефон (только цифры) -->
+    <input 
+      name="Телефон" 
+      placeholder="Контактный телефон" 
+      type="tel" 
+      inputmode="numeric"
+      pattern="[0-9]+" 
+      required 
+    />
+
+    <!-- Дата и время -->
+    <div class="form-row">
+      <input 
+        name="Дата" 
+        type="date" 
+        required 
+      />
+      <input 
+        name="Время" 
+        type="time" 
+        placeholder="Время" 
+      />
+    </div>
+
+    <!-- Класс бетона -->
+    <select name="Класс бетона/марка р-ра" required>
+      <option value="" disabled selected>Класс бетона/марка р-ра</option>
+      <option>р-р М100 48 ч</option>
+      <option>р-р М150 48 ч</option>
+      <option>р-р М100 24 ч</option>
+      <option>В25</option>
+      <option>р-р М100</option>
+      <option>В20</option>
+      <option>В15</option>
+      <option>В30</option>
+      <option>В7.5</option>
+      <option>В22.5</option>
+      <option>В40</option>
+      <option>В12.5</option>
+    </select>
+
+    <!-- Подвижность и т.д. -->
+    <select name="Подвижность, морозостойкость, дубль, крупность щебня">
+      <option value="" disabled selected>Подвижность, морозостойкость и др.</option>
+      <option>F150W6</option>
+      <option>W6F100</option>
+      <option>П3</option>
+      <option>W4F75П4</option>
+      <option>W6F100П4</option>
+      <option>W4F75П4</option>
+      <option>W6F75П4 сспц</option>
+      <option>W4 П3</option>
+      <option>W4 П4</option>
+      <option>W4F75П3 лестница</option>
+      <option>W4F75П3</option>
+      <option>W4</option>
+      <option>W6F100 П4</option>
+      <option>W6F75П4</option>
+      <option>W4F75 П3</option>
+    </select>
+
+    <!-- Способ подачи -->
+    <select name="Способ подачи смеси">
+      <option value="" disabled selected>Способ подачи смеси</option>
+      <option>стационар</option>
+      <option>кран</option>
+      <option>самослив</option>
+      <option>насос</option>
+    </select>
+
+    <!-- Адрес и примечание -->
     <input name="Адрес" placeholder="Адрес" />
-    <input name="Класс" placeholder="Класс бетона/марка раствора" required />
-    <input name="Подвижность" placeholder="Подвижность, морозостойкость..." />
-    <input name="Объем" placeholder="Объем, м³" type="number" step="0.1" required />
-    <input name="Подача" placeholder="Способ подачи смеси" />
-    <input name="ЦенаБетона" placeholder="Цена бетона, руб." type="number" step="0.01" required />
-    <input name="ЦенаДоставки" placeholder="Цена доставки, руб." type="number" step="0.01" />
     <input name="Примечание" placeholder="Примечание" />
+
     <button type="submit">Отправить заказ</button>
   </form>
 
   <script>
     const tg = window.Telegram.WebApp;
 
-    // Расширяем WebApp на весь экран
+    // Расширяем WebApp
     tg.expand();
+
+    // Автоматически устанавливаем сегодняшнюю дату
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('input[name="Дата"]').value = today;
 
     document.getElementById("orderForm").addEventListener("submit", function (e) {
       e.preventDefault();
+
+      // Проверка телефона
+      const phoneInput = document.querySelector('input[name="Телефон"]');
+      if (!/^[0-9]+$/.test(phoneInput.value)) {
+        tg.showAlert("Телефон должен содержать только цифры.");
+        return;
+      }
+
       const formData = new FormData(this);
       const data = {};
       formData.forEach((value, key) => {
-        data[key] = value.trim() || null; // Заменяем пустые строки на null
+        if (!value || value === "disabled" || value === "selected") return;
+        data[key] = value.trim() || null;
       });
 
-      // Отправляем JSON обратно в бота
+      // Отправляем данные в бот
       tg.sendData(JSON.stringify(data));
-
-      // Уведомление и закрытие
+      
       tg.showAlert("Заказ отправлен!", () => {
         tg.close();
       });
