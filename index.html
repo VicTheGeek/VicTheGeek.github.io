@@ -226,7 +226,13 @@
         tg.sendData(JSON.stringify(data));
         // Небольшая задержка перед закрытием, чтобы данные точно ушли
         setTimeout(() => {
-          tg.showAlert('Заказ отправлен!');
+          try {
+            if (typeof tg.showAlert === 'function') {
+              tg.showAlert('Заказ отправлен!');
+            }
+          } catch (e) {
+            // noop: старые версии Telegram могут не поддерживать showAlert
+          }
           tg.close();
         }, 200);
       } catch (e) {
