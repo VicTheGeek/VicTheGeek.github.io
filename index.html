@@ -108,7 +108,6 @@
   <form id="orderForm">
     <input name="Контрагент" placeholder="Контрагент" required />
 
-    <!-- Контактный телефон (только цифры) -->
     <input 
       name="Телефон" 
       placeholder="Контактный телефон" 
@@ -118,7 +117,6 @@
       required 
     />
 
-    <!-- Дата и время -->
     <div class="form-row">
       <input 
         name="Дата" 
@@ -132,7 +130,6 @@
       />
     </div>
 
-    <!-- Класс бетона -->
     <select name="Класс бетона/марка р-ра" required>
       <option value="" disabled selected>Класс бетона/марка р-ра</option>
       <option>р-р М100 48 ч</option>
@@ -149,7 +146,6 @@
       <option>В12.5</option>
     </select>
 
-    <!-- Подвижность и т.д. -->
     <select name="Подвижность, морозостойкость, дубль, крупность щебня">
       <option value="" disabled selected>Подвижность, морозостойкость и др.</option>
       <option>F150W6</option>
@@ -169,7 +165,6 @@
       <option>W4F75 П3</option>
     </select>
 
-    <!-- Способ подачи -->
     <select name="Способ подачи смеси">
       <option value="" disabled selected>Способ подачи смеси</option>
       <option>стационар</option>
@@ -178,7 +173,8 @@
       <option>насос</option>
     </select>
 
-    <!-- Адрес и примечание -->
+    <input name="Объем, м³" type="number" step="0.01" min="0" placeholder="Объем, м³" required />
+
     <input name="Адрес" placeholder="Адрес" />
     <input name="Примечание" placeholder="Примечание" />
 
@@ -188,36 +184,35 @@
   <script>
     const tg = window.Telegram.WebApp;
 
-    // Расширяем WebApp
     tg.expand();
 
-    // Автоматически устанавливаем сегодняшнюю дату
     const today = new Date().toISOString().split('T')[0];
     document.querySelector('input[name="Дата"]').value = today;
 
     document.getElementById("orderForm").addEventListener("submit", function (e) {
       e.preventDefault();
 
-      // Проверка телефона
       const phoneInput = document.querySelector('input[name="Телефон"]');
       if (!/^[0-9]+$/.test(phoneInput.value)) {
         tg.showAlert("Телефон должен содержать только цифры.");
         return;
       }
 
+      const volume = document.querySelector('input[name="Объем, м³"]').value;
+      if (volume === "") {
+        tg.showAlert("Заполните объём.");
+        return;
+      }
+
       const formData = new FormData(this);
       const data = {};
       formData.forEach((value, key) => {
-        if (!value || value === "disabled" || value === "selected") return;
-        data[key] = value.trim() || null;
+        if (value === undefined || value === null) return;
+        data[key] = String(value).trim();
       });
 
-      // Отправляем данные в бот
       tg.sendData(JSON.stringify(data));
-      
-      tg.showAlert("Заказ отправлен!", () => {
-        tg.close();
-      });
+      tg.showAlert("Заказ отправлен!", () => tg.close());
     });
   </script>
 </body>
